@@ -1,0 +1,12 @@
+[mysqld]
+server-id = 1
+log-bin = mysql-bin
+binlog_format = ROW
+
+# 🚀 開啟 GTID 模式
+gtid_mode = ON
+enforce_gtid_consistency = ON
+
+# 其他設定保持不變
+default-authentication-plugin = mysql_native_password
+read-only = 0

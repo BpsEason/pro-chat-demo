@@ -1,0 +1,185 @@
+services:
+  # --- 多個 Laravel Octane 實例（用於 Nginx Load Balancing）---
+  app1:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: rt-app1
+    volumes:
+      - ./backend:/var/www/html
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - NODE_ENV=development
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql-master
+      - DB_READ_HOST=mysql-slave
+      - DB_PORT=3306
+      - DB_DATABASE=chat_db
+      - DB_USERNAME=root
+      - DB_PASSWORD=root_password_2025
+      - REDIS_HOST=redis
+      - OCTANE_SERVER=swoole
+      - OCTANE_WATCH=false
+      - IS_MIGRATE_LEADER=1
+      - TZ=Asia/Taipei # 🔥 加在這裡
+    tty: true
+    restart: unless-stopped
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      mysql-slave:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - chat-net
+
+  app2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: rt-app2
+    volumes:
+      - ./backend:/var/www/html
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - NODE_ENV=development
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql-master
+      - DB_READ_HOST=mysql-slave
+      - DB_PORT=3306
+      - DB_DATABASE=chat_db
+      - DB_USERNAME=root
+      - DB_PASSWORD=root_password_2025
+      - REDIS_HOST=redis
+      - OCTANE_SERVER=swoole
+      - OCTANE_WATCH=false
+      - TZ=Asia/Taipei # 🔥 加在這裡
+    tty: true
+    restart: unless-stopped
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      mysql-slave:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - chat-net
+
+  # --- Laravel Reverb WebSocket Server ---
+  reverb:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: rt-reverb
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/var/www/html
+    entrypoint: [ "/bin/sh", "/usr/local/bin/entrypoint.sh", "reverb" ]
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql-master
+      - DB_DATABASE=chat_db
+      - DB_USERNAME=root
+      - DB_PASSWORD=root_password_2025
+      - REDIS_HOST=redis
+      - TZ=Asia/Taipei # 🔥 加在這裡
+    tty: true
+    restart: unless-stopped
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - chat-net
+
+  # --- MySQL Master (Write) ---
+  mysql-master:
+    build:
+      context: .
+      dockerfile: docker/mysql/Dockerfile.mysql
+      args:
+        - MYSQL_ROLE=master
+    container_name: rt-mysql-master
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password_2025
+      - MYSQL_DATABASE=chat_db
+      - TZ=Asia/Taipei # 🔥 加在這裡（MySQL 系統時間會變台灣）
+    volumes:
+      - ./mysql-data/master:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password_2025" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - chat-net
+
+  # --- MySQL Slave (Read) ---
+  mysql-slave:
+    build:
+      context: .
+      dockerfile: docker/mysql/Dockerfile.mysql
+      args:
+        - MYSQL_ROLE=slave
+    container_name: rt-mysql-slave
+    ports:
+      - "3307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password_2025
+      - TZ=Asia/Taipei # 🔥 加在這裡
+    volumes:
+      - ./mysql-data/slave:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password_2025" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+    networks:
+      - chat-net
+
+  # --- Redis ---
+  redis:
+    image: redis:alpine
+    container_name: rt-redis
+    environment:
+      - TZ=Asia/Taipei # 🔥 加在這裡（Redis log 時間會變台灣）
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chat-net
+
+  # --- Nginx Load Balancer ---
+  nginx:
+    image: nginx:alpine
+    container_name: rt-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./backend/public:/var/www/html/public
+    environment:
+      - TZ=Asia/Taipei # 🔥 加在這裡（Nginx access/error log 時間會變台灣）
+    depends_on:
+      - app1
+      - app2
+      - reverb
+    networks:
+      - chat-net
+
+networks:
+  chat-net:
+    driver: bridge

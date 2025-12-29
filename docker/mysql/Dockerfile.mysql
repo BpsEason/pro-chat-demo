@@ -1,0 +1,22 @@
+FROM mysql:8.0
+
+ARG MYSQL_ROLE=master
+
+# 1. 根據身分複製正確的設定檔，避免 Master 誤讀到 Slave 的 read-only
+COPY docker/mysql/${MYSQL_ROLE}.cnf /etc/mysql/conf.d/z_custom.cnf
+
+# 2. 複製初始化腳本
+COPY docker/mysql/init-master.sql /docker-entrypoint-initdb.d/
+COPY docker/mysql/init-slave.sh /usr/local/bin/init-slave.sh
+
+# 3. 解決 777 權限陷阱
+USER root
+RUN chmod 644 /etc/mysql/conf.d/z_custom.cnf \
+    && chmod +x /usr/local/bin/init-slave.sh
+
+# 4. 如果是 Slave，將腳本放入自動初始化目錄
+RUN if [ "$MYSQL_ROLE" = "slave" ]; then \
+    cp /usr/local/bin/init-slave.sh /docker-entrypoint-initdb.d/init-slave.sh; \
+    fi
+
+USER mysql

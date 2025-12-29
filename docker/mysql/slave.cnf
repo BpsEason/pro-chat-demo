@@ -1,0 +1,9 @@
+[mysqld]
+server-id = 2
+relay-log = relay-bin
+
+# 🚀 開啟 GTID 模式
+gtid_mode = ON
+enforce_gtid_consistency = ON
+
+read-only = 1

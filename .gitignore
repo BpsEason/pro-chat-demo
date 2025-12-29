@@ -1,0 +1,62 @@
+# ==========================================
+# 依賴套件 (Dependencies)
+# ==========================================
+/node_modules
+/vendor
+
+# ==========================================
+# Docker & 數據庫數據 (Crucial!)
+# ==========================================
+# 排除 MySQL 的實體數據
+docker/mysql/data/*
+!docker/mysql/data/.gitkeep
+
+*.sock
+*.lock
+
+# ==========================================
+# 環境設定
+# ==========================================
+# 雖然是 Demo，但建議排除真實 .env，保留 .env.example
+.env.backup
+.env.production
+.php_cs.cache
+.phpunit.result.cache
+
+# ==========================================
+# Laravel 編譯產出與快取 (Build & Cache)
+# ==========================================
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/testing/*
+storage/framework/views/*.php
+storage/logs/*.log
+
+# 排除 Vite 編譯產物 (如果你跑 npm run build 產生的檔案)
+public/build
+public/hot
+public/storage
+
+# 如果你有用開發用的資料庫檔案
+database/*.sqlite
+
+# ==========================================
+# 系統與 IDE 檔案
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ==========================================
+# 其他
+# ==========================================
+.phpunit.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
