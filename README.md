@@ -11,6 +11,13 @@
 
 ---
 
+好的，我幫你把系統流程圖加到 README 裡，採用 **Mermaid Flowchart**，這樣在 GitHub 上也能直接渲染。流程圖會清楚展示從訪客端到資料庫的完整路徑。
+
+---
+
+## 🏗️ 系統流程圖 (System Flow)
+
+```mermaid
 flowchart TD
     %% Clients
     subgraph Clients["用戶端 Browser"]
@@ -77,6 +84,7 @@ flowchart TD
     style Redis fill:#ef4444,stroke:#ffffff,color:#ffffff
     style MySQL_M fill:#3b82f6,stroke:#ffffff,color:#ffffff
     style MySQL_S fill:#60a5fa,stroke:#ffffff,color:#ffffff
+```
 
 
 ## 🏗️ 核心架構解析
@@ -159,3 +167,4 @@ docker-compose up -d --build
 * 請觀察 `app/stores/adminChat.js` 中的過濾邏輯，這展示了對即時通訊一致性的細膩處理。
 
 ---
+
