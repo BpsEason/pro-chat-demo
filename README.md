@@ -11,10 +11,6 @@
 
 ---
 
-好的，我幫你把系統流程圖加到 README 裡，採用 **Mermaid Flowchart**，這樣在 GitHub 上也能直接渲染。流程圖會清楚展示從訪客端到資料庫的完整路徑。
-
----
-
 ## 🏗️ 系統流程圖 (System Flow)
 
 ```mermaid
@@ -177,3 +173,4 @@ docker-compose up -d --build
 * **負載均衡**：Nginx 配置採用 Round-Robin 策略，並透過 `ip_hash` (選配) 或無狀態設計確保會話一致性。
 
 ---
+
