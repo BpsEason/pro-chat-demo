@@ -1,126 +1,96 @@
-# 🚀 Laravel 12 高性能即時客服系統 Demo
+# 🚀 Laravel 12 + Reverb 高性能即時客服系統
 
-這是一個基於 **Laravel 12** 與 **Reverb** 打造的高性能、低延遲即時客服系統。專為處理大量併發連線而優化，採用現代化的前後端分離架構，提供流暢的用戶溝通體驗。
-
-## ✨ 系統亮點
-
-* **極致即時性**：採用 Laravel Reverb 原生 WebSocket 伺服器，擺脫外部 Pusher 限制與延遲。
-* **現代化介面**：使用 **Vue 3 (Composition API)** 與 **Tailwind CSS** 打造的兩欄式客服後台與懸浮式訪客聊天窗。
-* **狀態管理**：利用 **Pinia** 統一管理會話狀態，確保跨組件數據同步。
-* **高效穩定**：支援 Redis 隊列加速廣播任務，並提供短輪詢 (Polling) 作為 WebSocket 斷線時的自動降級備援。
-* **容器化部署**：完整 Docker 環境配置，一鍵啟動全棧服務。
+本專案是一個基於 **Laravel 12** 的全棧即時通訊解決方案，採用 **Swoole (Octane)** 作為應用引擎，並實現了 **MySQL 主從讀寫分離** 與 **多容器負載均衡** 架構，專為處理高併發即時訊息而生。
 
 ---
 
-## 🛠 核心技術棧
+## 💎 系統核心亮點
 
-* **Backend**: Laravel 12 (PHP 8.3+), Reverb (WebSocket)
-* **Frontend**: Vue 3, Pinia, Tailwind CSS, Axios
-* **Database**: MySQL 8.0, Redis (Optional for Queue)
-* **Infrastructure**: Docker, Nginx, Vite
+### 1. 極致性能架構 (Enterprise Grade)
+
+* **Laravel Octane (Swoole)**：擺脫傳統 PHP-FPM 每次請求重新載入的開銷，實現常駐記憶體的高速響應。
+* **原生 WebSocket (Reverb)**：整合 Laravel 12 最新 Reverb 引擎，提供低延遲、高穩定性的雙向通訊。
+* **讀寫分離 (Read/Write Splitting)**：透過 Docker 實現 **MySQL 主從架構 (Master-Slave)**，寫入走 Master，查詢走 Slave，極大化資料庫吞吐。
+
+### 2. 鋼鐵般的維運邏輯 (Robust DevOps)
+
+* **智慧啟動腳本 (`entrypoint.sh`)**：
+* **自動鏡像修復**：Composer 缺失時，自動依序切換官方、阿里雲、騰訊鏡像，確保環境部署不中斷。
+* **資料庫就緒偵測**：不僅偵測 Port，還會自動驗證 MySQL 使用者權限是否已完成初始化。
+* **角色自動切換**：同一份映像檔根據啟動參數切換為 `App` 模式或 `Reverb` 模式。
+
+
+* **負載均衡 (Nginx Balancing)**：預設配置多個 App 實例（app1, app2），並由 Nginx 執行 Round-Robin 轉發與 WebSocket 升級處理。
+
+### 3. 高度自動化容器 (Docker Mastery)
+
+* **多階段編譯 (Multi-stage Build)**：Dockerfile 採用兩階段編譯，大幅縮減最終 Runtime 鏡像體積，並內置預編譯的 Swoole 與 Redis 擴展。
+* **GTID 自動同步**：MySQL Slave 容器啟動後自動執行腳本與 Master 建立同步，無需手動干預。
 
 ---
 
-## 📸 功能預覽
+## 🏗️ 系統架構圖
 
-### 1. 訪客端 (Visitor Chat)
-
-* 自動生成唯一訪客 ID。
-* 支援歷史訊息載入。
-* 漸層美觀的懸浮聊天視窗，支援自動捲動與發送狀態顯示。
-
-### 2. 客服端 (Admin Dashboard)
-
-* **兩欄式固定佈局**：左側實時會話列表（含未讀計數、最後訊息摘要）。
-* **權限保護**：整合 Laravel Breeze 認證系統。
-* **智能廣播過濾**：自動排除發送者自身廣播，防止訊息重複顯示。
+本系統透過 Nginx 作為入口點，將流量根據路徑精確分發至不同的高性能組件：
 
 ---
 
-## 🚀 快速開始
+## 🛠️ 技術棧說明
 
-### 1. 複製專案與安裝依賴
+### 後端 Backend
+
+* **Framework**: Laravel 12
+* **Engine**: Octane (Swoole 驅動)
+* **Real-time**: Laravel Reverb (WebSocket)
+* **Queue**: Redis (由 Alpine 鏡像優化)
+
+### 前端 Frontend
+
+* **Framework**: Vue 3 (Composition API)
+* **State**: Pinia
+* **Styling**: Tailwind CSS v4
+
+### 基礎設施 Infrastructure
+
+* **Reverse Proxy**: Nginx (負載均衡 & 靜態資源分離)
+* **Database**: MySQL 8.0 (Master-Slave Replication)
+* **Automation**: Shell-based Entrypoint System
+
+---
+
+## 🚀 部署路徑
+
+### 1. 環境初始化
 
 ```bash
-git clone https://github.com/your-repo/chat-demo.git
-cd chat-demo
-
-# 安裝 PHP 依賴
-composer install
-
-# 安裝前端依賴
-npm install
-
-```
-
-### 2. 環境配置
-
-```bash
+# 複製設定檔 (entrypoint 會自動處理 key:generate)
 cp .env.example .env
-php artisan key:generate
 
 ```
 
-請確保 `.env` 中的廣播設定如下：
-
-```env
-BROADCAST_CONNECTION=reverb
-QUEUE_CONNECTION=sync # 開發測試建議使用 sync，若生產環境建議使用 redis
-
-REVERB_APP_ID=my-app-id
-REVERB_APP_KEY=my-app-key
-REVERB_APP_SECRET=my-app-secret
-REVERB_HOST="localhost"
-REVERB_PORT=8080
-REVERB_SCHEME=http
-
-```
-
-### 3. 啟動服務 (Docker)
+### 2. 一鍵啟動
 
 ```bash
-docker-compose up -d
+# 啟動所有組件：2個 App 實例、1個 Reverb、1個 Master、1個 Slave、1個 Redis、1個 Nginx
+docker-compose up -d --build
 
 ```
 
-### 4. 初始化資料庫與編譯資產
+### 3. 角色說明
 
-```bash
-php artisan migrate --seed
-npm run dev
-
-```
-
----
-
-## 🔐 測試帳號 (Demo Access)
-
-為了方便測試，系統已預填測試環境帳號：
-
-* **客服登入網址**: `/login`
-* **帳號**: `admin@demo.com`
-* **密碼**: `password123`
+* **App Leader (rt-app1)**：負責執行 `migrate:fresh --seed` 與資料庫維護。
+* **App Worker (rt-app2)**：僅負責處理業務流量。
+* **Reverb (rt-reverb)**：專責 WebSocket 廣播。
+* **MySQL Master**：接收寫入請求。
+* **MySQL Slave**：處理查詢請求（Read-only）。
 
 ---
 
-## 🏗 系統架構圖
+## 🔐 測試登入
 
-系統透過 Nginx 將不同路徑的請求精確分流：
-
-* `/app` → 轉發至 **Reverb (8080)** 處理 WebSocket 握手。
-* `/api`, `/login` → 轉發至 **PHP-FPM** 處理業務邏輯。
-
----
-
-## 📝 開發備註
-
-* **廣播過濾**：系統在前端監聽器中透過 `sender_type` 判斷排除發送者自身的廣播，以確保「樂觀更新 (Optimistic UI)」與「廣播同步」不衝突。
-* **WebSocket 路徑**：請注意 `bootstrap.js` 中的 `wsPath` 配置需為空字串，以配合 Nginx 的路徑轉發規則。
-
----
-
-## 📄 授權協議
-
-本專案基於 [MIT License](https://www.google.com/search?q=LICENSE) 開源。
+* **後台登入網址**：`http://localhost/login`
+* **預設帳號**：`admin@demo.com`
+* **預設密碼**：`password123`
+* **系統特性**：登入頁面已自動預填測試帳號，並開啟 "Remember Me" 以便快速測試連線。
 
 ---
