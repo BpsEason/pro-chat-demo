@@ -174,3 +174,56 @@ docker-compose up -d --build
 
 ---
 
+## 架構與設計
+**Q1：為什麼選擇 Octane (Swoole)，而不是傳統 PHP-FPM？**  
+A1：PHP-FPM 每次請求都要重新載入框架，造成 CPU 資源浪費。在高併發即時通訊場景下，這是瓶頸。Octane (Swoole) 讓 Laravel 常駐記憶體，避免重複 Bootstrapping，吞吐量提升約 3~5 倍，單機可支撐 5,000+ 長連接。
+
+**Q2：Reverb + Redis 的設計如何解決多節點同步問題？**  
+A2：Reverb 提供原生 WebSocket，單節點即可處理大量連接。但在多 Octane 實例下，訊息必須跨節點同步。我使用 Redis Pub/Sub 作為消息總線，任何節點的訊息都會廣播到所有訂閱者，確保即時一致性。
+
+**Q3：為什麼要做 MySQL 主從讀寫分離？**  
+A3：客服系統查詢量遠大於寫入量。如果所有查詢都打到 Master，容易造成行鎖競爭。我透過 Laravel 的 `read/write` 連結設定，將查詢導向 Slave，寫入走 Master，查詢延遲在高負載下降低約 40%。
+
+---
+
+## 併發與內存管理
+**Q4：Octane 長駐內存下，如何避免 Singleton 汙染？**  
+A4：我在 Octane 的 tick hook 中重置 Request Container，確保每個請求的依賴注入不會被前一次污染。這是 Octane 模式下常見的陷阱，必須手動清理。
+
+**Q5：如何調整 Swoole Worker 數量？**  
+A5：我根據 CPU 核心數與系統 File Descriptor 上限計算最優 worker_num，並調整 `max_request` 與 `open_tcp_nodelay`，確保在高併發下不會出現 FD 耗盡或 TCP 延遲。
+
+---
+
+## 通訊協議與流量優化
+**Q6：Nginx 如何處理 WebSocket 與 REST API 的分流？**  
+A6：我在 Nginx 配置中使用 `map` 與 `proxy_pass`，將 `Upgrade: websocket` 的請求導向 Reverb，其他 HTTP 請求則導向 Octane。這樣避免長連接佔用短連接資源。
+
+**Q7：WebSocket 斷線時如何處理？**  
+A7：前端使用 Laravel Echo + Pinia，內建 Exponential Backoff 重連策略。後端則設定 Idle Timeout，確保資源不被無效連接佔用。
+
+---
+
+## DevOps 與維運
+**Q8：entrypoint.sh 的「自我修復」具體是怎麼做的？**  
+A8：它會檢查 Composer 是否可用，若失敗則自動切換到阿里雲或騰訊鏡像；啟動時會檢查 MySQL 使用者權限是否初始化完成；並透過環境變數 `IS_MIGRATE_LEADER` 確保只有一個節點執行 migrate，避免 Race Condition。
+
+**Q9：如何確保系統在容器失效時仍可用？**  
+A9：Nginx 採用 Round-Robin 與健康檢查，確保流量只導向可用的 Octane 實例。即使某個容器掛掉，系統仍能維持服務。
+
+---
+
+## 架構演進視野
+**Q10：如果系統要支撐百萬級用戶，你會怎麼演進？**  
+A10：我會將聊天服務、客服分配、查詢報表拆成獨立微服務，透過事件總線 (Kafka) 與 API Gateway 解耦。並在 Kubernetes 上配置 HPA，根據流量自動伸縮容器，確保系統具備彈性與高可用性。
+
+---
+
+## 安全與一致性
+**Q11：如何處理 Master-Slave 延遲造成的資料一致性問題？**  
+A11：對於必須即時一致的操作（例如訊息送出後立即查詢），我強制走 Master；其他非即時查詢則走 Slave。這樣在一致性與效能之間取得平衡。
+
+**Q12：WebSocket 認證與安全如何設計？**  
+A12：我使用 JWT 驗證，連線建立時必須攜帶 Token，後端驗證後才允許訂閱。並在 Nginx 層加上 Rate Limiting，防止惡意連線攻擊。
+
+---
