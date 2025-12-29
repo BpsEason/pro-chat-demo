@@ -121,7 +121,7 @@ flowchart TD
 | --- | --- | --- |
 | **後端** | Laravel 12 (PHP 8.4) | 採用最新 PHP 特性，配合 Octane 提升性能。 |
 | **即時通訊** | Laravel Reverb | 高併發 WebSocket，自研連線管理邏輯。 |
-| **前端** | Vue 3 + Pinia + Tailwind v4 | 組件化開發，狀態管理抽離，介面美觀度達生產級。 |
+| **前端** | Vue 3 + Pinia + Tailwind v3 | 組件化開發，狀態管理抽離，介面美觀度達生產級。 |
 | **緩存/隊列** | Redis (Alpine) | 處理訊息廣播異步化，避免請求阻塞。 |
 | **負載均衡** | Nginx | 靜態資產分離、WebSocket 反向代理。 |
 
@@ -161,10 +161,19 @@ docker-compose up -d --build
 
 ---
 
-### 給面試官的開發者備註
+## 📁 核心檔案路徑
 
-* 請觀察 `docker/Dockerfile` 中的多階段編譯，這體現了我對容器化性能的堅持。
-* 請觀察 `app/stores/adminChat.js` 中的過濾邏輯，這展示了對即時通訊一致性的細膩處理。
+* `docker/Dockerfile`: 多階段編譯與擴展安裝邏輯。
+* `entrypoint.sh`: 高強度的容器初始化與服務路由腳本。
+* `docker/mysql/init-slave.sh`: 自動建立 GTID 主從同步的關鍵邏輯。
+* `resources/js/components/`: 客服端（兩欄式佈局）與訪客端組件。
+* `resources/js/stores/`: 訊息過濾與廣播處理的核心 Pinia 狀態管理。
 
 ---
 
+## 📝 開發者說明
+
+* **訊息重複過濾**：系統在前端層級過濾了發送者自身的 `sender_type` 廣播，以實作「樂觀更新 (Optimistic UI)」並確保多端同步時的顯示正確。
+* **負載均衡**：Nginx 配置採用 Round-Robin 策略，並透過 `ip_hash` (選配) 或無狀態設計確保會話一致性。
+
+---
